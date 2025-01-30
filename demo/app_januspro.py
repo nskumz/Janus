@@ -32,46 +32,51 @@ cuda_device = 'cuda' if torch.cuda.is_available() else 'cpu'
 # @spaces.GPU(duration=120) 
 # Multimodal Understanding function
 def multimodal_understanding(image, question, seed, top_p, temperature):
+    try:
+        if image is None:
+            return "No image provided"
     # Clear CUDA cache before generating
-    torch.cuda.empty_cache()
-    
-    # set seed
-    torch.manual_seed(seed)
-    np.random.seed(seed)
-    torch.cuda.manual_seed(seed)
-    
-    conversation = [
-        {
-            "role": "<|User|>",
-            "content": f"<image_placeholder>\n{question}",
-            "images": [image],
-        },
-        {"role": "<|Assistant|>", "content": ""},
-    ]
-    
-    pil_images = [Image.fromarray(image)]
-    prepare_inputs = vl_chat_processor(
-        conversations=conversation, images=pil_images, force_batchify=True
-    ).to(cuda_device, dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float16)
-    
-    
-    inputs_embeds = vl_gpt.prepare_inputs_embeds(**prepare_inputs)
-    
-    outputs = vl_gpt.language_model.generate(
-        inputs_embeds=inputs_embeds,
-        attention_mask=prepare_inputs.attention_mask,
-        pad_token_id=tokenizer.eos_token_id,
-        bos_token_id=tokenizer.bos_token_id,
-        eos_token_id=tokenizer.eos_token_id,
-        max_new_tokens=512,
-        do_sample=False if temperature == 0 else True,
-        use_cache=True,
-        temperature=temperature,
-        top_p=top_p,
-    )
-    
-    answer = tokenizer.decode(outputs[0].cpu().tolist(), skip_special_tokens=True)
-    return answer
+        torch.cuda.empty_cache()
+        
+        # set seed
+        torch.manual_seed(seed)
+        np.random.seed(seed)
+        torch.cuda.manual_seed(seed)
+        
+        conversation = [
+            {
+                "role": "<|User|>",
+                "content": f"<image_placeholder>\n{question}",
+                "images": [image],
+            },
+            {"role": "<|Assistant|>", "content": ""},
+        ]
+        
+        pil_images = [Image.fromarray(image)]
+        prepare_inputs = vl_chat_processor(
+            conversations=conversation, images=pil_images, force_batchify=True
+        ).to(cuda_device, dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float16)
+        
+        
+        inputs_embeds = vl_gpt.prepare_inputs_embeds(**prepare_inputs)
+        
+        outputs = vl_gpt.language_model.generate(
+            inputs_embeds=inputs_embeds,
+            attention_mask=prepare_inputs.attention_mask,
+            pad_token_id=tokenizer.eos_token_id,
+            bos_token_id=tokenizer.bos_token_id,
+            eos_token_id=tokenizer.eos_token_id,
+            max_new_tokens=512,
+            do_sample=False if temperature == 0 else True,
+            use_cache=True,
+            temperature=temperature,
+            top_p=top_p,
+        )
+        
+        answer = tokenizer.decode(outputs[0].cpu().tolist(), skip_special_tokens=True)
+        return answer
+    except Exception as e:
+      return str(e)
 
 
 def generate(input_ids,
@@ -138,6 +143,7 @@ def generate_image(prompt,
                    guidance=5,
                    t2i_temperature=1.0):
     # Clear CUDA cache and avoid tracking gradients
+    try:           
     torch.cuda.empty_cache()
     # Set the seed for reproducible results
     if seed is not None:
@@ -169,6 +175,9 @@ def generate_image(prompt,
                         parallel_size=parallel_size)
 
         return [Image.fromarray(images[i]).resize((768, 768), Image.LANCZOS) for i in range(parallel_size)]
+    except Exception as e:
+  return str(e)
+      
         
 
 # Gradio interface
